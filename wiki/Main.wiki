@@ -4,6 +4,7 @@ Tracker writtein in Erlang.
 
 = Details =
 Example GET Request:
+
 GET /?info_hash=F%3E6%ACb%F9%5C%9E%89%9C%8C%83%2C%7Fz%F1%7D%DF%D9f
 
 &peer_id=-lt0B40-%C4%10%D7%C1%DEk%27%F2%21%D8%8C%03
