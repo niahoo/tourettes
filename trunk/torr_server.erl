@@ -8,7 +8,8 @@
 
 init(Port) ->
    case listen(Port,[list,{active,true}]) of
-      {ok,Listen} -> loop(Listen);
+      {ok,Listen} -> Pid = spawn(fun() -> loop(Listen) end),
+					 register(torr_connector, Pid);
       {error,_} -> failed
    end.
 

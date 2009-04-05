@@ -1,9 +1,9 @@
 %%%-------------------------------------------------------------------
 %%% File    : Tracker.erl
-%%% Author  : David H
+%%% Authors  : Tobias O & David H
 %%% Description : 
 %%%
-%%% Created : 11 Feb 2009 by David H
+%%% Created : 11 Feb 2009
 %%%-------------------------------------------------------------------
 -module(tracker).
 
@@ -25,6 +25,10 @@
 %%% Tracker Requests
 %%--------------------------------------------------------------------
 
+request(Data, IP) ->
+	gen_server:cast(?MODULE, {client_request, Data, IP}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Need IP?
 info_hash(SHA1) ->
 	gen_server:cast(?MODULE, {info_hash, SHA1}).
@@ -35,6 +39,11 @@ peer_id(ID) ->
 %%% Tracker Responses ???
 %%--------------------------------------------------------------------
 
+%Response with bencoded Dict
+send_to_client(DataDict, IP) ->
+	ok.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 failure(ClientIP, Reason) ->
 	gen_server:call(?MODULE, {failure, ClientIP, Reason}).
 %% warning msg
@@ -72,7 +81,7 @@ start_link() ->
 %%--------------------------------------------------------------------
 init([]) ->
 %%	{ok, #state{}}.
-	{ok, mnesia:create_table(?MODULE,[])}.
+	{ok, ets:new(?MODULE,[])}.
 
 %%--------------------------------------------------------------------
 %% Function: %% handle_call(Request, From, State) -> {reply, Reply, State} |
@@ -93,6 +102,11 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
+handle_cast({client_request, DataDict, IP}) ->
+	ets:insert(ETS, dict:to_list({IP,DataDict})),
+	
+			   
+
 handle_cast(_Msg, State) ->
 	{noreply, State}.
 
