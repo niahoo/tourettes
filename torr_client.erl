@@ -6,7 +6,6 @@
 -import(dict,[is_key/2,find/2,store/3,from_list/1]).
 -import(lists,[map/2,any/2,takewhile/2,dropwhile/2,reverse/1,foreach/2]).
 -export([handle/1]).
--compile(export_all).
 
 handle(Socket) ->
     receive
@@ -20,6 +19,7 @@ handle(Socket) ->
             end,
             handle(Socket);
         {response,Resp} ->
+            % BEncode
             send(Socket,Resp),
             close(Socket);
         fail -> 
