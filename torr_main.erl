@@ -7,19 +7,22 @@
 %%%-------------------------------------------------------------------
 -module(torr_main).
 % -import(tracker_simple,[init/0]).
--import(torr_server,[init/1]).
--export([init/0,test/1]).
+% -import(torr_server,[init/1]).
+-export([init/1,test/1]).
 
-init() ->
-	PidServer = torr_server:init(60666),
-	PidTracker = tracker_simple:init().
+init(Port) ->
+	PidServer = torr_server:init(Port),
+	PidTracker = tracker_simple:init(),
+%	torr_tracker ! {add, "AARNE"}.
+	
+
 
 %	test(PidTracker).
 
 test(Pid) ->
 	Pid ! {add, "AARNE"},
-	Pid ! {request,{self(),"AARNE",id,ip,port}},
+	Pid ! {request,{self(),"AARNE",1,2,3}},
 	receive
-		{peers,Peers} -> io:format("~w",[dict:to_list(Peers)]);
+		{peers,Peers} -> io:format("~w",[(Peers)]);
 		fail -> io:format("No AARNE :c")
 	end.
