@@ -10,10 +10,9 @@ init(Port) ->
     case listen(Port,[list,{active,true}]) of
         {ok,Listen} -> 
             Pid = spawn(fun() -> loop(Listen) end),
-            register(torr_connector, Pid);
+            register(torr_server, Pid);
         {error,_} -> failed
     end.
-
 
 loop(Listen) ->
    case accept(Listen) of

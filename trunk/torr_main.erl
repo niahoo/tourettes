@@ -12,7 +12,7 @@
 
 init(Port) ->
 	PidServer = torr_server:init(Port),
-	PidTracker = tracker_simple:init(),
+	PidTracker = tracker_simple:init().
 %	torr_tracker ! {add, "AARNE"}.
 	
 
