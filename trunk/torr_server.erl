@@ -7,11 +7,12 @@
 -export([init/1]).
 
 init(Port) ->
-   case listen(Port,[list,{active,true}]) of
-      {ok,Listen} -> Pid = spawn(fun() -> loop(Listen) end),
-					 register(torr_connector, Pid);
-      {error,_} -> failed
-   end.
+    case listen(Port,[list,{active,true}]) of
+        {ok,Listen} -> 
+            Pid = spawn(fun() -> loop(Listen) end),
+            register(torr_connector, Pid);
+        {error,_} -> failed
+    end.
 
 
 loop(Listen) ->

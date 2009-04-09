@@ -4,9 +4,9 @@
 -import(string,[tokens/2]).
 -import(lists,[map/2,all/2]).
 -import(dict,[from_list/1,find/2]).
--import(erlang,[tuple_size/1,list_to_integer/2]).
+-import(erlang,[list_to_integer/2]).
 
--export(parseReq/2).
+-export([parse_req/2]).
 
 parse_req(String,Pid) ->
    RawPairs = tokens(String,"&"),

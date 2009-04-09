@@ -16,11 +16,9 @@ handle(Socket) ->
             spawn(fun() -> parse_req(Data,self()) end),
             handle(Socket);
         {parse_ok,Dict} ->
-            case is_valid(Dict) of
-                true    -> ok;
-                false   -> ok
-            end,
+            send(Socket,"parse ok"),
             handle(Socket);
+        fail -> send(Socket,"fail");
         {peers,PeerDict} ->
             Resp = bencode(PeerDict),
             send(Socket,Resp),

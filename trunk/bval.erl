@@ -1,4 +1,4 @@
--module(bval) 
+-module(bval). 
 -export([bencode/1,bdecode/1]).
 
 
