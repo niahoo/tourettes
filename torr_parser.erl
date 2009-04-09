@@ -6,30 +6,21 @@
 -import(dict,[from_list/1,find/2]).
 -import(erlang,[list_to_integer/2]).
 
--export([parse_req/2]).
+-export([parse/2]).
 
-parse_req(String,Pid) ->
-   RawPairs = tokens(String,"&"),
-   KeyValues = map(fun(E) -> list_to_tuple(tokens(E,"=")) end, RawPairs),
-   case all(fun(Tup) -> tuple_size(Tup) == 2 end, KeyValues) of
-      false -> Pid ! parse_fail;
-      true ->
-        Dict = from_list(map(fun(A) -> convert(A) end,KeyValues)),
-        Pid ! {parse_ok,Dict}
-      end.
+parse(<<"GET /announce?",Request/binary>>,Pid) -> 
+    PairList = split(Request),
+    case announce(PairList) of
 
-convert({Key,Val}) -> 
-    KBin = list_to_binary(Key),
-    case KBin of
-        <<"port">> -> {KBin,list_to_integer(Val)};
-        <<"uploaded">> -> {KBin,list_to_integer(Val)};
-        <<"downloaded">> -> {KBin,list_to_integer(Val)};
-        <<"left">> -> {KBin,list_to_integer(Val)};
-        _   -> {KBin,list_to_binary(url_decode(Val))}
-    end.
+parse(<<"GET /scrape?",Request/binary>>,Pid) -> 
+    Reply = parse_scrape(Request),
+    Pid ! {scrape_parse,Request}.
+
+% Should split the request into key/value pairs
+split(Request) -> ok.
 
 
-
+%% Build this into split?
 %% Take care of this later.
 %% Should fail in case of malformed encoded string
 url_decode([]) -> [];
