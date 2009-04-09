@@ -1,0 +1,11 @@
+This contains a list of all messages that are accepted in the tracker, and where.
+
+torr_client:
+* {parse_ok,Dict} - Sent from the parser
+* parse_fail - Sent from the parser
+* {peers,PeerDict} - Sent from the tracker
+* fail - Sent from the tracker
+
+torr_tracker:
+* {request,{Pid,ReqDict}} - Sent from the client
+* {add,Hash} - Just for testing
