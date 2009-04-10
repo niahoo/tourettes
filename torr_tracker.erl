@@ -3,7 +3,7 @@
 -export([init/0]).
 
 init() ->
-	Pid = spawn_link(fun() -> tracker(new()) end),
+	Pid = spawn(fun() -> tracker(new()) end),
 	register(torr_tracker,Pid),
 	Pid.
 
@@ -18,19 +18,19 @@ tracker(Torrents) ->
 					case find(ID,Peers) of
 						{ok,_} -> tracker(Torrents);
 						error ->
-							IP = fetch(<<"ip">>,ReqDict),
-							Port = fetch(<<"port">>,ReqDict),
-							NewPeers = store(ID,{IP,Port},Peers),
+                     IP = {<<"ip">>,fetch(<<"ip">>,ReqDict)}, 
+                     Port = {<<"port">>,fetch(<<"port">>,ReqDict)},
+							NewPeers = store({<<"peer_id">>,ID},{Port,IP},Peers),
 							tracker(store(Hash,NewPeers,Torrents))
 					end;
 				error -> 
-                                    Cid ! torrent_fail,
-                                    tracker(Torrents)
+            	Cid ! torrent_fail,
+               tracker(Torrents)
 			end;
 
-                {add,Hash} -> 
+		{add,Hash} -> 
 		    case find(Hash,Torrents) of
-			{ok,_} -> tracker(Torrents);
-			error ->  tracker(store(Hash,new(),Torrents))
+				{ok,_} -> tracker(Torrents);
+				error ->  tracker(store(Hash,new(),Torrents))
 		    end
 	end.
