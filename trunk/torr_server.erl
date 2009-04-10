@@ -9,7 +9,7 @@
 init(Port) ->
     case listen(Port,[list,{active,true}]) of
         {ok,Listen} -> 
-            Pid = spawn(fun() -> loop(Listen) end),
+            Pid = spawn(fun() -> process_flag(trap_exit,true), loop(Listen) end),
             register(torr_server, Pid);
         {error,_} -> failed
     end.
@@ -19,8 +19,9 @@ loop(Listen) ->
       {ok,Socket} ->
          {ok,{IP,_}} = peername(Socket),
          io:format("IP:~w connected \n",[IP]),
-         Pid = spawn(fun() -> handle(Socket) end),
+         Pid = spawn_link(fun() -> handle(Socket) end),
          controlling_process(Socket,Pid),
          loop(Listen);
-      {error,Reason} -> {fail,Reason}
+      {error,Reason} -> {fail,Reason};
+      {'EXIT',Client,Reason} -> io:format("Unexpected failure in client \n")
    end.

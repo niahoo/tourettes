@@ -9,10 +9,12 @@ bencode(Int) when is_integer(Int) ->
 	[$i,integer_to_list(Int),$e];
 
 bencode(Str) when is_binary(Str) ->
-	[integer_to_list(size(Str)),$:,Str];
+	[integer_to_list(size(Str)),$:,binary_to_list(Str)];
+
+bencode({Key,Val}) -> [bencode(Key),bencode(Val)];
 
 bencode(Dict) when element(1,Dict) == dict ->
-	[$d, [[bencode(Key), bencode(Val)] || {Key, Val} <- dict:to_list(Dict)], $e].
+	[$d,[[bencode(Key), bencode(Val)] || {Key, Val} <- dict:to_list(Dict)], $e].
 
 bdecode([$i | Rest]) ->
  	End = string:chr(Rest, $e),
