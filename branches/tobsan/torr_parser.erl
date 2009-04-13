@@ -7,24 +7,21 @@
 -import(erlang,[list_to_integer/2]).
 
 -export([parse/2]).
+-compile(export_all).
 
 parse(<<"GET /announce?",Request/binary>>,Pid) -> 
-    PairList = split(Request),
-    case announce(PairList) of
-
-parse(<<"GET /scrape?",Request/binary>>,Pid) -> 
-    Reply = parse_scrape(Request),
-    Pid ! {scrape_parse,Request}.
+    PairList = split($&,Request,<<>>),
+    Pid ! {parse_ok,PairList}.
 
 % Should split the request into key/value pairs
-split(Request) -> ok.
+split(_Char,<<>>,<<>>) -> [];
+split(_Char,<<>>,Acc) -> [Acc];
+split(Char,<<Char,Rest/binary>>,<<>>) -> split(Char,Rest,<<>>);
+split(Char,<<Char,Rest/binary>>,Acc) -> 
+    Part = url_decode(Acc),
+    [ <<Part/binary>> | split(Char,Rest,<<>>) ];
+split(Char,<<Data:8,Rest/binary>>,<<>>) -> split(Char,Rest,<<Data>>);
+split(Char,<<Data:8,Rest/binary>>,Acc) -> split(Char,Rest,<<Acc/binary,Data>>).
 
-
-%% Build this into split?
-%% Take care of this later.
-%% Should fail in case of malformed encoded string
-url_decode([]) -> [];
-url_decode([$%,H,L|Tail]) ->
-   Hex = list_to_integer([H,L],16),
-   [Hex | url_decode(Tail)];
-url_decode([H|Tail]) -> [H | url_decode(Tail)].
+% TODO write this
+url_decode(String) -> ok.
