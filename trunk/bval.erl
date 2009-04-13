@@ -22,6 +22,5 @@ bencode_bin(Dict) when element(1,Dict) == dict ->
    Bin = fold(fun(_Key,Val,Acc) -> bencode_bin_elem(Val,Acc) end, <<>>, Dict),
    Size = dict:size(Dict) * 6,   
    {integer_to_list(Size),Bin}.
-%bencode_bin_elem(Tup,Acc) -> io:format("~w",[Tup]), Acc.
 bencode_bin_elem({{_,IP},{_,Port}},Acc) -> <<Acc/binary,IP/binary,Port:16>>.
 

@@ -20,10 +20,11 @@ tracker(Torrents) ->
 						error ->
                      IP = {<<"ip">>,fetch(<<"ip">>,ReqDict)}, 
                      Port = {<<"port">>,fetch(<<"port">>,ReqDict)},
-							NewPeers = store({<<"peer_id">>,ID},{IP,Port},Peers),
+							NewPeers = store(ID,{IP,Port},Peers),
 							tracker(store(Hash,NewPeers,Torrents))
 					end;
-				error -> 
+				error ->
+               self() ! {add,Hash}, % Just for test, very open
             	Cid ! torrent_fail,
                tracker(Torrents)
 			end;
