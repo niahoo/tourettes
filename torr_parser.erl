@@ -2,12 +2,16 @@
 -author("Tobias & David").
 
 -import(string,[tokens/2]).
--import(lists,[map/2,all/2]).
+-import(lists,[map/2,all/2,takewhile/2]).
 -import(dict,[from_list/1,find/2]).
 -import(erlang,[list_to_integer/2]).
 
 -export([parse_req/2]).
-parse_req([ $G,$E,$T,$ ,$/,$? | Req ],Pid) -> parse_req(Req,Pid);
+
+parse_req([ $G,$E,$T,$ ,$/,$ | Crap], Pid) -> Pid ! accept;
+parse_req([ $G,$E,$T,$ ,$/,$? | Req ],Pid) -> 
+        RealReq = takewhile(fun(E) -> E /= $ end,Req),
+        parse_req(RealReq,Pid);
 parse_req(String,Pid) ->
    RawPairs = tokens(String,"&"),
    KeyValues = map(fun(E) -> list_to_tuple(tokens(E,"=")) end, RawPairs),

@@ -16,13 +16,12 @@ handle(Socket) ->
     receive
         {tcp,Socket,Data} ->
             CPid = self(),
-            io:format("Received data: ~w\n",[Data]),
+            io:format("Received data:~p\n",[Data]),
             spawn(fun() -> parse_req(Data,CPid) end),
             handle(Socket);
         {parse_ok,Dict} ->
             case is_valid(Dict) of
-                true ->
-                  send(Socket,"parse_ok\n"),
+               true ->
                   case is_key(<<"ip">>,Dict) of
                      true -> torr_tracker ! {request,{self(),Dict}};
                      false ->
@@ -30,11 +29,14 @@ handle(Socket) ->
                         IPDict = store(<<"ip">>,ip2bin(IP),Dict),
                         torr_tracker ! {request,{self(),IPDict}}
                   end;
-                false ->
-                    send(Socket,"parse_fail\n")
+               false -> self() ! parse_fail
             end,
             handle(Socket);
+         accept ->
+            send(Socket,"HTTP/1.0 200 OK\r\n"),
+            handle(Socket);
         torrent_fail ->
+            io:format("Torrent not found\n"),
             self() ! parse_fail,
             handle(Socket);
         {peers,PeerDict} ->
@@ -42,9 +44,14 @@ handle(Socket) ->
             {Size,Bval} = bencode_bin(PeerDict),
             Response = Pre ++ Size ++ ":" ++ binary_to_list(Bval) ++ "e",
             io:format("Sending response: ~w\n",[Response]),
+            send(Socket,"HTTP/1.0 200 OK\r\n"),
+            send(Socket,"Content-Type: text/plain\r\n\r\n"),
             send(Socket,Response),
             close(Socket);
         parse_fail -> 
+            io:format("Parse failure\n"),
+            send(Socket,"HTTP/1.0 200 OK\r\n"),
+            send(Socket,"Content-Type: text/plain\r\n\r\n"),
             send(Socket,"d7:failure11:Bad requeste"),
             close(Socket)
     end.
@@ -57,6 +64,3 @@ is_valid(Dict) -> is_key(<<"info_hash">>,Dict) and
 ip2bin({A,B,C,D}) -> <<A,B,C,D>>.
 ip_to_binary({A,B,C,D}) -> [integer_to_list(A),$.,integer_to_list(B),$.,
    integer_to_list(C),$.,integer_to_list(D)].
-
-
-
