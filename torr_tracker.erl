@@ -20,7 +20,7 @@ tracker(Torrents) ->
 						error ->
                      IP = {<<"ip">>,fetch(<<"ip">>,ReqDict)}, 
                      Port = {<<"port">>,fetch(<<"port">>,ReqDict)},
-							NewPeers = store({<<"peer_id">>,ID},{Port,IP},Peers),
+							NewPeers = store({<<"peer_id">>,ID},{IP,Port},Peers),
 							tracker(store(Hash,NewPeers,Torrents))
 					end;
 				error -> 

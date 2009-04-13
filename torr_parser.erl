@@ -7,7 +7,7 @@
 -import(erlang,[list_to_integer/2]).
 
 -export([parse_req/2]).
-
+parse_req([ $G,$E,$T,$ ,$/,$? | Req ],Pid) -> parse_req(Req,Pid);
 parse_req(String,Pid) ->
    RawPairs = tokens(String,"&"),
    KeyValues = map(fun(E) -> list_to_tuple(tokens(E,"=")) end, RawPairs),
@@ -27,7 +27,6 @@ convert({Key,Val}) ->
         <<"left">> -> {KBin,list_to_integer(Val)};
         _   -> {KBin,list_to_binary(url_decode(Val))}
     end.
-
 
 
 %% Take care of this later.
