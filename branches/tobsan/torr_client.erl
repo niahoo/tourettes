@@ -10,24 +10,24 @@
 -export([handle/1]).
 
 handle(Socket) ->
-    receive
-        {tcp,Socket,Data} ->
-            CPid = self(),
-            process_flag(trap_exit, true),
-            spawn_link(fun() -> parse(CPid,Data) end),
-            handle(Socket);
-        {tcp_closed,Socket} ->
-            exit(closed);
-        {tcp_error,Socket,Reason} ->
-            exit(Reason);
-        {parse_ok,Data} ->
-            torr_tracker ! {request,Data},
-            handle(Socket);
-        {'EXIT',_Parser,Reason} -> 
-            % Parser failed
-            send(Socket,"d7:failure11:bad requeste"),
-            close(Socket)
-    end.
-
-% Verifies that the parsed data have the required field
-verify(Data) -> ok.
+   receive
+      {tcp,Socket,Data} ->
+         CPid = self(),
+         spawn_link(fun() -> parse(CPid,Data) end),
+         handle(Socket);
+      {tcp_closed,Socket} ->
+         exit(closed);
+      {tcp_error,Socket,Reason} ->
+         exit(Reason);
+      {parse_ok,Dict} ->
+         torr_tracker ! {request,Dict,self()},
+         handle(Socket);
+      {scrape_ok,List} ->
+         %torr_tracker ! {scrape,List,self()},
+         send(Socket,"HTTP/1.1 404 Not Found\r\n"),
+         handle(Socket);
+      {'EXIT',_Parser,Reason} -> 
+         % Parser failed
+         send(Socket,"d7:failure11:bad requeste"),
+         close(Socket)
+   end.
