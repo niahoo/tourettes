@@ -1,7 +1,8 @@
 -module(torr_tracker).
 -author("Tobias Olausson").
 
--import(dict,[new/0,is_key/2,store/3,erase/2]).
+-import(dict,[new/0,is_key/2,store/3,erase/2,fetch/2,find/2]).
+-import(sets,[add_element/2]).
 
 -export([init/0]).
 
@@ -15,8 +16,25 @@ init() ->
 
 tracker(Torrents) -> 
    receive 
-      {request,Dict,Pid} -> ok;
-      {scrape,List,Pid} -> ok;
+      {{request,Type},Data,Pid} ->
+         case Type of
+            announce -> 
+               Hash = fetch(<<"info_hash">>,Data),
+               case find(Hash,Torrents) of
+                  {ok,Peers} -> 
+                     Pid ! {peers,Peers},
+                     IP = fetch(<<"ip">>,Data),
+                     Port = fetch(<<"port">>,Data),
+                     Elem = <<IP/binary,Port/binary>>,
+                     NewPeers = add_element(Elem,Peers),
+                     tracker(store(Hash,NewPeers,Torrents));
+                  error -> 
+                     Pid ! torrent_not_found,
+                     % REALLY open
+                     tracker(store(Hash,sets:new(),Torrents))
+               end;
+            scrape -> ok
+         end;
       {add,Hash} -> 
          case is_key(Hash,Torrents) of
             true -> tracker(Torrents);
