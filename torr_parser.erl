@@ -54,6 +54,9 @@ valid(Dict) -> case
    is_key(<<"info_hash">>,Dict) and
    is_key(<<"peer_id">>,Dict) and
    is_key(<<"port">>,Dict) of
+   % is_key(<<"uploaded">>,Dict) and
+   %is_key(<<"downloaded">>,Dict) and
+   %is_key(<<"left">>,Dict) of
       true -> Dict;
       false -> exit(missingkeys)
 end.
