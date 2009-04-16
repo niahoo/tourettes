@@ -21,6 +21,8 @@ init(Port) ->
 server(Listen) ->
    case accept(Listen) of
       {ok,Socket} -> 
+         {ok,{IP,_}} = inet:peername(Socket),
+         io:format("~w connected\n",[IP]),
          Pid = spawn_link(fun() -> 
                   process_flag(trap_exit,true),
                   handle(Socket)
