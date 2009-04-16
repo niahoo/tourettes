@@ -11,13 +11,14 @@
 parse(<<"GET /announce?",Request/binary>>,Pid) -> 
    ReqDict = split_fsm(dict,key,Request,<<>>,<<>>),
    valid(ReqDict),
-   Pid ! {parse_ok,ReqDict};
+   Pid ! {{parse_ok,announce},ReqDict};
 parse(<<"GET /scrape?",Request/binary>>,Pid) -> 
    ReqList = split_fsm(list,key,Request,<<>>,<<>>),
    case all(fun({K,_}) -> K =:= <<"info_hash">> end,ReqList) of
-      true -> Pid ! {scrape_ok,ReqList};
+      true -> Pid ! {{parse_ok,scrape},ReqList};
       false -> exit(bad_scrape)
-   end.
+   end;
+parse(_,_) -> exit(bad_request).
 
 % Empty request strings are NOT accepted
 split_fsm(_T,_State,<<>>,<<>>,_Val) -> exit(early_end);

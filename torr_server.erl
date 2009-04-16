@@ -25,9 +25,10 @@ server(Listen) ->
                   process_flag(trap_exit,true),
                   handle(Socket)
                end),
-         controlling_process(Socket,Pid);
+         controlling_process(Socket,Pid),
+         server(Listen);
       {'EXIT',Pid,_Reason} -> 
-         io:format("Client ~w terminated",[Pid]),
-         handle(Listen);
+         io:format("Client ~w terminated\n",[Pid]),
+         server(Listen);
       {error,Reason} -> exit(Reason)
    end.
