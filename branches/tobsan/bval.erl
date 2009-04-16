@@ -1,46 +1,37 @@
 -module(bval). 
--export([bencode/1,bdecode/1]).
+-import(lists,[foldl/3]).
+-export([bencode/1]).
 
-
-bencode(List) when is_list(List) ->
-	[$l, [bencode(X) || X <- List], $e];
-
-bencode(Int) when is_integer(Int) ->
-	[$i,integer_to_list(Int),$e];
-
-bencode(Str) when is_binary(Str) ->
-	[integer_to_list(size(Str)),$:,Str];
+-compile(export_all).
 
 bencode(Dict) when element(1,Dict) == dict ->
-	[$d, [[bencode(Key), bencode(Val)] || {Key, Val} <- dict:to_list(Dict)], $e].
+   BFun = fun(Key,Val,Acc) -> 
+         {BKey,BVal} = {bencode(Key),bencode(Val)},
+         <<Acc/binary,BKey/binary,BVal/binary>> end,
+   BinDict = dict:fold(BFun,<<>>,Dict),
+   <<$d,BinDict/binary,$e>>;
 
-bdecode([$i | Rest]) ->
- 	End = string:chr(Rest, $e),
-	(lists:sublist(Rest,1,End-1));
+bencode(List) when is_list(List) ->
+   BList = foldl(
+      fun(Elem, Acc) -> 
+            BElem = bencode(Elem),
+            <<Acc/binary,BElem/binary>>
+      end, <<>>, List),
+   <<$l,BList/binary,$e>>;
 
-bdecode([Int | Rest]) when Int >= $0, Int =< $9 ->
-	lists:sublist(Rest,2,Int).
+bencode(Str) when is_binary(Str) ->
+   S = integer_to_binary(bit_size(Str) div 8),
+   <<S/binary,$:,Str/binary>>;
 
-%% bdecode([$l | Rest]) ->
-%% 	decodeList(Rest);
+bencode(Int) when is_integer(Int) -> 
+   BInt = foldl(fun(E,Acc) -> <<Acc/binary,E>> end, 
+                <<>>, integer_to_list(Int)),
+   <<$i,BInt/binary,$e>>.
 
-%% bdecode([$d | Rest]) ->
-%% 	decodeDict(Rest).
-
-%% decodeList(List) ->
-%% 	List;
-
-%% decodeDict(Dict) ->
-%% 	Dict.
-
-%% bdecode([Char | Rest]) -> 
-%% 	case Char of
-%% 		{$l} ->  
-
-%%%is_string(Str) -> [and is_char(Char) || Char <- Str].
-
-%% is_string([_Char | _Rest] = Str) when is_list(Str) ->
-%% 	lists:all(fun(C) -> is_char(C) end, Str);
-%% is_string(_) -> false.
-
-%% is_char(Char) -> Char >= 32 andalso Char =< 255.
+% Converts an integer into a binary
+% O(log10 N)
+integer_to_binary(N) when N < 10 -> <<(N+48)>>;
+integer_to_binary(N) -> 
+   Num = N rem 10,
+   Rest = integer_to_binary(N div 10),
+   <<Rest/binary,(Num+48)>>.
