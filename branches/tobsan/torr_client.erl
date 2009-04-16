@@ -19,28 +19,31 @@ handle(Socket) ->
    receive
       {tcp,Socket,Data} ->
          CPid = self(),
-         spawn_link(fun() -> parse(CPid,Data) end),
+         io:format("Received: ~w\n",[Data]),
+         spawn_link(fun() -> parse(Data,CPid) end),
          handle(Socket);
       {tcp_closed,Socket} ->
          exit(closed);
       {tcp_error,Socket,Reason} ->
          exit(Reason);
       % Recieved from the parser
-      {{parse_ok,Type},Dict} ->
-         torr_tracker ! {{request,Type},Dict,self()},
+      {{parse_ok,Type},Data} ->
+         io:format("Parse ok: ~w\n",[Data]),
+         torr_tracker ! {{request,Type},Data,self()},
          handle(Socket);
       % All responses comes from the tracker
       {{response,Type},Data} ->
+         io:format("Tracker response: ~w\n",[Data]),
          case Type of
             % Announce
             peers -> 
                send(Socket,httpHeader(ok)),
-               send(Socket,"d8intervali900e5peers:"),
+               send(Socket,"d8:intervali900e5:peers"),
                send(Socket,sets:size(Data)*6 ++ ":"),
-               send(Socket,list_to_binary(sets:to_list(Data))),
+               send(Socket,list_to_binary(sets:to_list(Data)));
             error ->
-               send(Socket,httpHeader(ok));
-               % Send bencoded failure
+               send(Socket,httpHeader(nf)),
+               send(Socket,"d8:failure3:404");
             % Scrape
             files -> 
                send(Socket,httpHeader(ok)),
@@ -50,7 +53,9 @@ handle(Socket) ->
          close(Socket);
       % The parser is the only process created by the
       % client. Thus, if something fails, it is the parser
-      {'EXIT',_Parser,_Reason} ->
+      {'EXIT',_Parser,normal} -> handle(Socket);
+      {'EXIT',_Parser,Reason} ->
+         io:format("Parser crashed: ~w\n",[Reason]),
          send(Socket,httpHeader(ok)),
          send(Socket,"d7:failure11:bad requeste"),
          close(Socket)
