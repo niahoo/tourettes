@@ -9,11 +9,13 @@
 -compile(export_all).
 
 parse(<<"GET /announce?",Request/binary>>,Pid) -> 
-   ReqDict = split_fsm(dict,key,Request,<<>>,<<>>),
+   Req = bin_takewhile($ ,Request),
+   ReqDict = split_fsm(dict,key,Req,<<>>,<<>>),
    valid(ReqDict),
    Pid ! {{parse_ok,announce},ReqDict};
 parse(<<"GET /scrape?",Request/binary>>,Pid) -> 
-   ReqList = split_fsm(list,key,Request,<<>>,<<>>),
+   Req = bin_takewhile($ ,Request),
+   ReqList = split_fsm(list,key,Req,<<>>,<<>>),
    case all(fun({K,_}) -> K =:= <<"info_hash">> end,ReqList) of
       true -> Pid ! {{parse_ok,scrape},ReqList};
       false -> exit(bad_scrape)
@@ -38,16 +40,22 @@ split_fsm(Type,key,<<Char:8,Rest/binary>>,Key,_Val) ->
 split_fsm(_T,val,<<$=,_Rest/binary>>,_Key,_Val) -> exit(early_eq);
 split_fsm(_T,val,<<$&,_Rest/binary>>,_Key,<<>>) -> exit(early_amp);
 split_fsm(list,val,<<$&,Rest/binary>>,Key,Val) -> 
-   [{Key,url_decode(Val,<<>>)} | split_fsm(list,key,Rest,<<>>,<<>>)];
+   case Key of
+      <<"port">> -> [{Key,binary_to_integer(Val)} | split_fsm(list,key,Rest,<<>>,<<>>) ];
+      _ -> [{Key,url_decode(Val,<<>>)} | split_fsm(list,key,Rest,<<>>,<<>>)]
+   end;
 split_fsm(dict,val,<<$&,Rest/binary>>,Key,Val) -> 
-   store(Key,url_decode(Val,<<>>),split_fsm(dict,key,Rest,<<>>,<<>>));
+   case Key of
+      <<"port">> -> store(Key,binary_to_integer(Val),split_fsm(dict,key,Rest,<<>>,<<>>));
+      _ -> store(Key,url_decode(Val,<<>>),split_fsm(dict,key,Rest,<<>>,<<>>))
+   end;
 split_fsm(T,val,<<Char:8,Rest/binary>>,Key,Val) -> 
    split_fsm(T,val,Rest,Key,<<Val/binary,Char>>).
 
 % Fails in case of a malformed string
 url_decode(<<>>,Acc) -> Acc;
 url_decode(<<$%,H:8,L:8,Rest/binary>>,Acc) ->
-   Value = list_to_integer([H,L]),
+   Value = erlang:list_to_integer([H,L],16),
    url_decode(Rest,<<Acc/binary,Value>>);
 url_decode(<<Byte:8,Rest/binary>>,Acc) -> url_decode(Rest,<<Acc/binary,Byte>>).
 
@@ -61,3 +69,14 @@ valid(Dict) -> case
       true -> Dict;
       false -> exit(missingkeys)
 end.
+
+binary_to_integer(BinInt) when is_binary(BinInt) ->
+   lists:foldl(fun(Elem,Acc) -> Acc*10 + (Elem-48) end,0,binary_to_list(BinInt)).
+
+bin_takewhile(Char,Data) -> bin_takewhile1(Char,Data,<<>>).
+bin_takewhile1(_,<<>>,Acc) -> Acc;
+bin_takewhile1(Char,<<C:8,Rest/binary>>,Acc) -> 
+   case Char == C of
+      true -> Acc;
+      false -> bin_takewhile1(Char,Rest,<<Acc/binary,C>>)
+   end.

@@ -11,5 +11,16 @@
 -export([init/1]).
 
 init(Port) ->
-	PidServer = torr_server:init(Port),
-	PidTracker = torr_tracker:init().
+   spawn(fun() ->
+            process_flag(trap_exit,true),
+            torr_server:init(Port),
+            torr_tracker:init(),
+            super() end).
+
+super() ->
+   receive
+      {'EXIT',_,normal} -> super();
+      {'EXIT',Pid,Reason} ->
+         io:format("Process crash ~w:~w",[Pid,Reason]),
+         super()
+   end.

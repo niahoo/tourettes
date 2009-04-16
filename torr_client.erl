@@ -12,43 +12,56 @@
 httpHeader(Type) -> 
    case Type of
       ok -> "HTTP/1.0 200 Ok\r\nContent-Type: text/plain\r\n\r\n";
-      nf -> "HTTP/1.0 404 Not Found \n\rContent-Type: text/plain\r\n\r\n"
+      nf -> "HTTP/1.0 404 Not Found\n\rContent-Type: text/plain\r\n\r\n"
    end.
 
 handle(Socket) ->
    receive
       {tcp,Socket,Data} ->
          CPid = self(),
-         io:format("Received: ~w\n",[Data]),
          spawn_link(fun() -> parse(Data,CPid) end),
          handle(Socket);
       {tcp_closed,Socket} ->
-         exit(closed);
+         exit("socket closed");
       {tcp_error,Socket,Reason} ->
-         exit(Reason);
+         exit("tcp error");
       % Recieved from the parser
       {{parse_ok,Type},Data} ->
-         io:format("Parse ok: ~w\n",[Data]),
-         torr_tracker ! {{request,Type},Data,self()},
+         case Type of
+            scrape -> torr_tracker ! {{request,Type},Data,self()},
+            announce ->
+               case is_key(<<"ip">>,Data) of
+                  true -> torr_tracker ! {{request,Type},Data,self()};
+                  false ->
+                     {ok,{IP,_}} = peername(Socket),
+                     IPData = store(<<"ip">>,ip2bin(IP),Data),
+                     torr_tracker ! {{request,Type},IPData,self()}
+               end
+         end,
          handle(Socket);
       % All responses comes from the tracker
       {{response,Type},Data} ->
-         io:format("Tracker response: ~w\n",[Data]),
          case Type of
             % Announce
             peers -> 
+               io:format("Tracker responded with peers\n"),
                send(Socket,httpHeader(ok)),
-               send(Socket,"d8:intervali900e5:peers"),
-               send(Socket,sets:size(Data)*6 ++ ":"),
-               send(Socket,list_to_binary(sets:to_list(Data)));
+               send(Socket,<<"d8:intervali900e5:peers">>),
+               send(Socket,integer_to_list(sets:size(Data)*6) ++ ":"),
+               send(Socket,list_to_binary(sets:to_list(Data))),
+               send(Socket,<<"e">>);
             error ->
-               send(Socket,httpHeader(nf)),
-               send(Socket,"d8:failure3:404");
+               io:format("Tracker could not find torrent\n"),
+               send(Socket,httpHeader(ok)),
+               send(Socket,<<"d7:failure3:404e">>);
             % Scrape
             files -> 
+               io:format("Tracker responded to scrape"),
                send(Socket,httpHeader(ok)),
                send(Socket,bencode_scrape(Data));
-            scrape_error -> send(Socket,httpHeader(nf))
+            scrape_error -> 
+               io:format("Tracker could not scrape torrent"),
+               send(Socket,httpHeader(ok))
          end,
          close(Socket);
       % The parser is the only process created by the
@@ -57,6 +70,8 @@ handle(Socket) ->
       {'EXIT',_Parser,Reason} ->
          io:format("Parser crashed: ~w\n",[Reason]),
          send(Socket,httpHeader(ok)),
-         send(Socket,"d7:failure11:bad requeste"),
+         send(Socket,<<"d7:failure11:bad requeste">>),
          close(Socket)
    end.
+
+ip2bin({A,B,C,D}) -> <<A,B,C,D>>.

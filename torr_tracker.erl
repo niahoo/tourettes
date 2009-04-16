@@ -20,20 +20,23 @@ tracker(Torrents) ->
          case Type of
             announce -> 
                Hash = fetch(<<"info_hash">>,Data),
+               IP = fetch(<<"ip">>,Data),
+               Port = fetch(<<"port">>,Data),
+               Elem = <<IP/binary,Port:16>>,
                case find(Hash,Torrents) of
                   {ok,Peers} -> 
                      Pid ! {{response,peers},Peers},
-                     IP = fetch(<<"ip">>,Data),
-                     Port = fetch(<<"port">>,Data),
-                     Elem = <<IP/binary,Port/binary>>,
                      NewPeers = add_element(Elem,Peers),
                      tracker(store(Hash,NewPeers,Torrents));
                   error -> 
                      Pid ! {{response,error},<<"not found">>},
                      % REALLY open
-                     tracker(store(Hash,sets:new(),Torrents))
+                     PeerSet = add_element(Elem,sets:new()),
+                     tracker(store(Hash,PeerSet,Torrents))
                end;
-            scrape -> Pid ! {{response,scrape_error},"Not supported"}
+            scrape -> 
+               Pid ! {{response,scrape_error},<<"Not supported">>},
+               tracker(Torrents)
          end;
       {add,Hash} -> 
          case is_key(Hash,Torrents) of
