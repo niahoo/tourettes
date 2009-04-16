@@ -33,7 +33,11 @@ handle(Socket) ->
       {{response,Type},Data} ->
          case Type of
             % Announce
-            peers -> ok;
+            peers -> 
+               send(Socket,httpHeader(ok)),
+               send(Socket,"d8intervali900e5peers:"),
+               send(Socket,sets:size(Data)*6 ++ ":"),
+               send(Socket,list_to_binary(sets:to_list(Data))),
             error ->
                send(Socket,httpHeader(ok));
                % Send bencoded failure
