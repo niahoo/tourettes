@@ -86,10 +86,26 @@ handle_udp(Host,Port,Data) ->
                case Action of
                   % Connection
                   0 ->
-                     io:format("Sending response\n"),
                      Response = <<0:32,TransID:32,ConnID:64>>,
                      udp_server ! {reply,Host,Port,Response};
-                  1 -> ok; %announce
+                  1 -> case Size >= 96 of
+                        false -> exit("bad_packet_size");
+                        true ->
+                           <<Hash:160, PeerID:160, Down:64,
+                              Left:64, Up:64, Event:32, _IP:32, Key:32,
+                              NumWant:32, _Port2:16, Crap/binary>> = Rest,
+                              % Quite inefficient
+                              Req = store(<<"info_hash">>,Hash,store(<<"ip">>,Host,store(<<"port">>,Port,dict:new()))),
+                              torr_tracker ! {{request,announce},Req,self()},
+                              receive
+                                 {{response,peers},Peers} -> 
+                                    Head = <<1:32,TransID:32,900:32,0:32,0:32>>,
+                                    PS = list_to_binary(sets:to_list(Peers)),
+                                    udp_server ! {reply,Host,Port,<<Head/binary,PS/binary>>};
+                                 {{response,error},Data} -> 
+                                    udp_server ! {reply,Host,Port,<<1:32,TransID:32,900:32,0:32,0:32>>}
+                              end
+                      end;
                   2 -> ok %scrape
                end
          end
