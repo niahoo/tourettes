@@ -1,82 +1,84 @@
 -module(torr_parser).
 -author("Tobias & David").
 
--import(string,[tokens/2]).
--import(lists,[map/2,all/2]).
--import(dict,[is_key/2,store/3,new/0,from_list/1]).
-
+-import(dict,[is_key/2,store/3]).
 -export([parse/2]).
--compile(export_all).
 
+% Main function, should be forked off while
+% supplying the callers Pid as an argument
 parse(<<"GET /announce?",Request/binary>>,Pid) -> 
    Req = bin_takewhile($ ,Request),
-   ReqDict = split_fsm(dict,key,Req,<<>>,<<>>),
+   ReqDict = parse_key(Req,<<>>),
    valid(ReqDict),
    Pid ! {{parse_ok,announce},ReqDict};
 parse(<<"GET /scrape?",Request/binary>>,Pid) -> 
    Req = bin_takewhile($ ,Request),
-   ReqList = split_fsm(list,key,Req,<<>>,<<>>),
-   case all(fun({K,_}) -> K =:= <<"info_hash">> end,ReqList) of
-      true -> Pid ! {{parse_ok,scrape},ReqList};
-      false -> exit(bad_scrape)
-   end;
+   Pid ! {{parse_ok,scrape},scrape(Req)};
 parse(_,_) -> exit(bad_request).
 
-% Empty request strings are NOT accepted
-split_fsm(_T,_State,<<>>,<<>>,_Val) -> exit(early_end);
-split_fsm(_T,_State,<<>>,_Key,<<>>) -> exit(early_end);
-split_fsm(list,_State,<<>>,Key,Val) -> 
-   [{url_decode(Key,<<>>),url_decode(Val,<<>>)}];
-split_fsm(dict,_State,<<>>,Key,Val) -> 
-   store(url_decode(Key,<<>>),url_decode(Val,<<>>),new());
-% When parsing the key
-split_fsm(_T,key,<<$&,_Rest/binary>>,_Key,_Val) -> exit(early_amp);
-split_fsm(_T,key,<<$=,_Rest/binary>>,<<>>,_Val) -> exit(early_eq);
-split_fsm(Type,key,<<$=,Rest/binary>>,Key,<<>>) -> 
-   split_fsm(Type,val,Rest,url_decode(Key,<<>>),<<>>);
-split_fsm(Type,key,<<Char:8,Rest/binary>>,Key,_Val) -> 
-   split_fsm(Type,key,Rest,<<Key/binary,Char>>,<<>>);
-% When parsing the value
-split_fsm(_T,val,<<$=,_Rest/binary>>,_Key,_Val) -> exit(early_eq);
-split_fsm(_T,val,<<$&,_Rest/binary>>,_Key,<<>>) -> exit(early_amp);
-split_fsm(list,val,<<$&,Rest/binary>>,Key,Val) -> 
-   case Key of
-      <<"port">> -> [{Key,binary_to_integer(Val)} | split_fsm(list,key,Rest,<<>>,<<>>) ];
-      _ -> [{Key,url_decode(Val,<<>>)} | split_fsm(list,key,Rest,<<>>,<<>>)]
-   end;
-split_fsm(dict,val,<<$&,Rest/binary>>,Key,Val) -> 
-   case Key of
-      <<"port">> -> store(Key,binary_to_integer(Val),split_fsm(dict,key,Rest,<<>>,<<>>));
-      _ -> store(Key,url_decode(Val,<<>>),split_fsm(dict,key,Rest,<<>>,<<>>))
-   end;
-split_fsm(T,val,<<Char:8,Rest/binary>>,Key,Val) -> 
-   split_fsm(T,val,Rest,Key,<<Val/binary,Char>>).
+% parse_key and parse_val are used when
+% parsing a request for announce
+parse_key(<<>>,_Key) -> exit(premature_end);
+parse_key(<<$&,_Rest/binary>>,_Key) -> exit(premature_amp);
+parse_key(<<$=,_Rest/binary>>,<<>>) -> exit(premature_eq);
+parse_key(<<$=,Rest/binary>>,Key) -> parse_val(Rest,Key,<<>>);
+parse_key(<<Char:8,Rest/binary>>,Key) -> parse_key(Rest,<<Key/binary,Char>>).
 
-% Fails in case of a malformed string
+parse_val(<<>>,_Key,<<>>) -> exit(premature_end);
+parse_val(<<>>,Key,Val) -> store(Key,convert(Key,Val),dict:new());
+parse_val(<<$=,_Rest/binary>>,_Key,_Val) -> exit(premature_eq);
+parse_val(<<$&,_Rest/binary>>,_Key,<<>>) -> exit(premature_amp);
+parse_val(<<$&,Rest/binary>>,Key,Val) ->
+   store(Key,convert(Key,Val),parse_key(Rest,<<>>));
+parse_val(<<Char:8,Rest/binary>>,Key,Val) -> 
+   parse_val(Rest,Key,<<Val/binary,Char>>).
+
+% Parse scrape requests
+scrape(<<"info_hash=",Hash/binary>>) -> scrape2(Hash,<<>>).
+scrape2(<<>>,<<>>) -> exit(premature_end);
+scrape2(<<>>,Acc) -> [ url_decode(Acc,<<>>) ];
+scrape2(<<$&,Rest/binary>>,Acc) -> [url_decode(Acc,<<>>) | scrape(Rest) ];
+scrape2(<<$=,_Rest/binary>>,_) -> exit(premature_eq);
+scrape2(<<Char:8,Rest/binary>>,Acc) -> scrape2(Rest,<<Acc/binary,Char>>).
+
+% Fails if % is followed by non-hex chars,
+% or if the string ends in %
 url_decode(<<>>,Acc) -> Acc;
+url_decode(<<$%>>,_Acc) -> exit(badarg);
 url_decode(<<$%,H:8,L:8,Rest/binary>>,Acc) ->
    Value = erlang:list_to_integer([H,L],16),
    url_decode(Rest,<<Acc/binary,Value>>);
 url_decode(<<Byte:8,Rest/binary>>,Acc) -> url_decode(Rest,<<Acc/binary,Byte>>).
 
+% Checking for required fields
 valid(Dict) -> case
    is_key(<<"info_hash">>,Dict) and
    is_key(<<"peer_id">>,Dict) and
    is_key(<<"port">>,Dict) of
-   % is_key(<<"uploaded">>,Dict) and
-   %is_key(<<"downloaded">>,Dict) and
-   %is_key(<<"left">>,Dict) of
       true -> Dict;
       false -> exit(missingkeys)
 end.
 
-binary_to_integer(BinInt) when is_binary(BinInt) ->
-   lists:foldl(fun(Elem,Acc) -> Acc*10 + (Elem-48) end,0,binary_to_list(BinInt)).
-
-bin_takewhile(Char,Data) -> bin_takewhile1(Char,Data,<<>>).
-bin_takewhile1(_,<<>>,Acc) -> Acc;
-bin_takewhile1(Char,<<C:8,Rest/binary>>,Acc) -> 
-   case Char == C of
-      true -> Acc;
-      false -> bin_takewhile1(Char,Rest,<<Acc/binary,C>>)
+% Converts some fields into integers while leaving other
+convert(Key,Val) -> 
+   case Key of
+      <<"port">>        -> binary_to_integer(Val,0);
+      <<"downloaded">>  -> binary_to_integer(Val,0);
+      <<"uploaded">>    -> binary_to_integer(Val,0);
+      <<"left">>        -> binary_to_integer(Val,0);
+      <<"numwant">>     -> binary_to_integer(Val,0);
+      _ -> url_decode(Val,<<>>)
    end.
+
+% Converts a binary representation of an integer into 
+% a real integer, that is <<"123">> => 123
+binary_to_integer(<<>>,Acc) -> Acc;
+binary_to_integer(<<Num:8,Rest/binary>>,Acc) when Num >= 48 andalso Num < 58 ->
+   binary_to_integer(Rest, Acc*10 + (Num-48)).
+
+% Almost like takewhile, but for binaries
+bin_takewhile(Char,Data) -> bin_takewhile1(Data,Char,<<>>).
+bin_takewhile1(<<>>,_,Acc) -> Acc;
+bin_takewhile1(<<Char,_Rest/binary>>,Char,Acc) -> Acc;
+bin_takewhile1(<<Byte:8,Rest/binary>>,Char,Acc) -> 
+   bin_takewhile1(Rest,Char,<<Acc/binary,Byte>>).
