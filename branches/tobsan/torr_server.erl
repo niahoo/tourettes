@@ -32,6 +32,7 @@ init(udp,Port) ->
 
 
 udp_loop(Socket) ->
+   io:format("Looping on UDP Socket\n"),
    receive
       {udp,Socket,Host,Port,Data} ->
          spawn_link(fun() -> handle_udp(Host,Port,Data) end);
@@ -41,6 +42,7 @@ udp_loop(Socket) ->
    end.
 
 tcp_loop(Listen) ->
+   io:format("Looping on TCP Socket\n"),
    case accept(Listen) of
       {ok,Socket} -> 
          {ok,{IP,_}} = inet:peername(Socket),
@@ -52,7 +54,7 @@ tcp_loop(Listen) ->
          controlling_process(Socket,Pid),
          tcp_loop(Listen);
       {'EXIT',Pid,_Reason} -> 
-         io:format("Client ~w terminated\n",[Pid]),
+         io:format("TCP Client ~w terminated\n",[Pid]),
          tcp_loop(Listen);
       {error,Reason} -> exit(Reason)
    end.
