@@ -1,11 +1,11 @@
 -module(torr_parser).
--author("Tobias & David").
+-author("Tobias Olausson").
 
 -import(dict,[is_key/2,store/3]).
 -export([parse/2]).
 
 % Main function, should be forked off while
-% supplying the callers Pid as an argument
+% supplying the caller's Pid as an argument
 parse(<<"GET /announce?",Request/binary>>,Pid) -> 
    Req = bin_takewhile($ ,Request),
    ReqDict = parse_key(Req,<<>>),

@@ -75,14 +75,16 @@ handle_tcp(Socket) ->
    end.
 
 handle_udp(Host,Port,Data) ->
+   io:format("Received datagram from ~w\n",[Host]),
    Size = bit_size(Data) div 8,
    case Size >= 16 of
       false -> exit("bad_packet_size");
       true -> 
          <<ConnID:64,Action:32,TransID:32,Rest/binary>> = Data,
-         case ConnID == 41727101980 of
+         case ConnID == 41727101980 of % BitTorrent UDP identifier
             false -> exit("not_torrent_packet");
             true -> 
+               io:format("Packet is valid, action is ~w\n",[Action]),
                case Action of
                   % Connection
                   0 ->
@@ -96,13 +98,16 @@ handle_udp(Host,Port,Data) ->
                               NumWant:32, _Port2:16, Crap/binary>> = Rest,
                               % Quite inefficient
                               Req = store(<<"info_hash">>,Hash,store(<<"ip">>,Host,store(<<"port">>,Port,dict:new()))),
+                              io:format("Announcing\n"),
                               torr_tracker ! {{request,announce},Req,self()},
                               receive
-                                 {{response,peers},Peers} -> 
+                                 {{response,peers},Peers} ->
+                                    io:format("Got peers\n"),
                                     Head = <<1:32,TransID:32,900:32,0:32,0:32>>,
                                     PS = list_to_binary(sets:to_list(Peers)),
                                     udp_server ! {reply,Host,Port,<<Head/binary,PS/binary>>};
-                                 {{response,error},Data} -> 
+                                 {{response,error},Data} ->
+                                    io:format("No data found\n"),
                                     udp_server ! {reply,Host,Port,<<1:32,TransID:32,900:32,0:32,0:32>>}
                               end
                       end;
