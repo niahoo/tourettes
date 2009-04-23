@@ -46,7 +46,7 @@ handle_tcp(Socket) ->
             peers ->
                io:format("Tracker responded with peers \n"),
                Size = list_to_binary(integer_to_list(length(Data) * 6)),
-               Peers = lists:foldl( fun({P,_,_,_},Acc) -> 
+               Peers = lists:foldl(fun({P,_,_,_},Acc) -> 
                         <<Acc/binary,P/binary>> end, <<>>,Data),
                Head = httpHeader(ok),
                Response = <<Head/binary,"d8:intervali900e5:peers",
@@ -79,8 +79,8 @@ handle_tcp(Socket) ->
 handle_udp(Host,InPort,Data) ->
    io:format("Received datagram from ~w\n",[Host]),
    IP = ip2bin(Host),
-   Size = bit_size(Data) div 8,
-   case Size >= 16 of
+   PacketSize = bit_size(Data) div 8,
+   case PacketSize >= 16 of
       false -> exit("bad_packet_size");
       true -> 
          <<ConnID:64,Action:32,TransID:32,Rest/binary>> = Data,
@@ -94,7 +94,7 @@ handle_udp(Host,InPort,Data) ->
                      Response = <<0:32,TransID:32,ConnID:64>>,
                      udp_server ! {reply,Host,InPort,Response};
                   % Announce
-                  1 -> case Size >= 98 of
+                  1 -> case PacketSize >= 98 of
                         false -> exit("bad_packet_size");
                         true ->
                            <<Hash:160, _PeerID:160, Down:64,
@@ -102,19 +102,21 @@ handle_udp(Host,InPort,Data) ->
                               NumWant:32, Port:16, Crap/binary>> = Rest,
                               % Quite inefficient
                               Req = dict:from_list([
-                                    {<<"info_hash">>,Hash},{<<"ip">>,IP},
+                                    {<<"info_hash">>,<<Hash:160>>},{<<"ip">>,IP},
                                     {<<"port">>,Port},{<<"downloaded">>,Down},
-                                    {<<"uploaded">>,Up},{<<"left">>,Left}]),
+                                    {<<"uploaded">>,Up},{<<"left">>,Left},
+                                    {<<"event">>,Event}]),
                               torr_tracker ! {{request,announce},Req,self()},
+                              io:format("Announced, waiting for reply\n"),
                               receive
                                  {{response,peers},Peers} ->
                                     Size = length(Peers),
-                                    Head = <<1:32,TransID:32,900:32,Size:32,0:32>>,
+                                    Head = <<1:32,TransID:32,900:32,0:32,Size:32>>,
                                     PS = list_to_binary([Peer || {Peer,_,_,_} <- Peers]),                                    
                                     Response = <<Head/binary,PS/binary>>,
                                     io:format("Sending response: ~w\n",[Response]),
                                     udp_server ! {reply,Host,InPort,Response};
-                                 {{response,error},Data} ->
+                                 {{response,error},Error}->
                                     io:format("No data found\n"),
                                     udp_server ! {reply,Host,InPort,<<1:32,TransID:32,900:32,0:32,0:32>>}
                               end
