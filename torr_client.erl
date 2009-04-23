@@ -44,14 +44,10 @@ handle_tcp(Socket) ->
          case Type of
             % Announce
             peers ->
-               io:format("Tracker responded with peers\n"),
+               io:format("Tracker responded with peers \n"),
                Size = list_to_binary(integer_to_list(length(Data) * 6)),
-%               Peers = lists:foldl(
-%                  fun({P,_,_,_},Acc) -> <<Acc/binary,P/binary>> end,
-%                     <<>>,Data),
-               Peers = list_to_binary([Peer || {Peer,_,_,_} <- Data]),
-               io:format("Peers: ~w\n",[Peers]),
-               
+               Peers = lists:foldl( fun({P,_,_,_},Acc) -> 
+                        <<Acc/binary,P/binary>> end, <<>>,Data),
                Head = httpHeader(ok),
                Response = <<Head/binary,"d8:intervali900e5:peers",
                             Size/binary,":",Peers/binary,"e">>,
@@ -97,6 +93,7 @@ handle_udp(Host,InPort,Data) ->
                   0 ->
                      Response = <<0:32,TransID:32,ConnID:64>>,
                      udp_server ! {reply,Host,InPort,Response};
+                  % Announce
                   1 -> case Size >= 98 of
                         false -> exit("bad_packet_size");
                         true ->
