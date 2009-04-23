@@ -8,41 +8,42 @@
 -export([init/2]).
 
 init(tcp,Port) ->
-   case listen(Port,[binary]) of
-      {ok,Listen} ->
-         Pid = spawn(fun() ->
-                  process_flag(trap_exit,true),
-                  tcp_loop(Listen)
-            end),
-         register(tcp_server,Pid),
-         Pid;
-      {error,Reason} -> exit(Reason)
-   end;
+   {ok,Listen} = listen(Port,[binary]),
+   Pid = spawn(fun() ->
+            process_flag(trap_exit,true),
+            io:format("Starting TCP server\n"),
+            tcp_loop(Listen)
+         end),
+   register(tcp_server,Pid),
+   Pid;
+
 init(udp,Port) ->
-   case open(Port,[binary]) of
-      {ok,Socket} ->
-         Pid = spawn(fun() ->
-                  process_flag(trap_exit,true),
-                  udp_loop(Socket)
-            end),
-         register(udp_server,Pid),
-         Pid;
-      {error,Reason} -> exit(Reason)
-   end.
+   {ok,Socket} = open(Port,[binary]),
+   Pid = spawn(fun() ->
+            process_flag(trap_exit,true),
+            io:format("Starting UDP server\n"),
+            udp_loop(Socket)
+         end),
+   gen_udp:controlling_process(Socket,Pid),
+   register(udp_server,Pid),
+   Pid.
 
 
 udp_loop(Socket) ->
-   io:format("Looping on UDP Socket\n"),
    receive
       {udp,Socket,Host,Port,Data} ->
-         spawn_link(fun() -> handle_udp(Host,Port,Data) end);
-      {reply,Address,Port,Data} -> send(Socket,Address,Port,Data);
+         spawn_link(fun() -> handle_udp(Host,Port,Data) end),
+         udp_loop(Socket);
+      {reply,Address,Port,Data} -> 
+         send(Socket,Address,Port,Data),
+         udp_loop(Socket);
+      {'EXIT',_Pid,normal} -> udp_loop(Socket);
       {'EXIT',_Pid,Reason} -> 
-         io:format("UDP Client terminated with reason:~w\n",[Reason])
+         io:format("UDP Client terminated with reason:~w\n",[Reason]),
+         udp_loop(Socket)
    end.
 
 tcp_loop(Listen) ->
-   io:format("Looping on TCP Socket\n"),
    case accept(Listen) of
       {ok,Socket} -> 
          {ok,{IP,_}} = inet:peername(Socket),

@@ -56,11 +56,11 @@ handle_tcp(Socket) ->
                send(Socket,<<"d7:failure3:404e">>);
             % Scrape
             files -> 
-               io:format("Tracker responded to scrape"),
+               io:format("Tracker responded to scrape\n"),
                send(Socket,httpHeader(ok)),
                send(Socket,bencode_scrape(Data));
             scrape_error -> 
-               io:format("Tracker could not scrape torrent"),
+               io:format("Tracker could not scrape torrent\n"),
                send(Socket,httpHeader(ok))
          end,
          close(Socket);
@@ -74,14 +74,15 @@ handle_tcp(Socket) ->
          close(Socket)
    end.
 
-handle_udp(Host,Port,Data) ->
+handle_udp(Host,InPort,Data) ->
    io:format("Received datagram from ~w\n",[Host]),
+   IP = ip2bin(Host),
    Size = bit_size(Data) div 8,
    case Size >= 16 of
       false -> exit("bad_packet_size");
       true -> 
          <<ConnID:64,Action:32,TransID:32,Rest/binary>> = Data,
-         case ConnID == 41727101980 of % BitTorrent UDP identifier
+         case ConnID == 16#41727101980 of % BitTorrent UDP identifier
             false -> exit("not_torrent_packet");
             true -> 
                io:format("Packet is valid, action is ~w\n",[Action]),
@@ -89,26 +90,26 @@ handle_udp(Host,Port,Data) ->
                   % Connection
                   0 ->
                      Response = <<0:32,TransID:32,ConnID:64>>,
-                     udp_server ! {reply,Host,Port,Response};
+                     udp_server ! {reply,Host,InPort,Response};
                   1 -> case Size >= 96 of
                         false -> exit("bad_packet_size");
                         true ->
                            <<Hash:160, PeerID:160, Down:64,
                               Left:64, Up:64, Event:32, _IP:32, Key:32,
-                              NumWant:32, _Port2:16, Crap/binary>> = Rest,
+                              NumWant:32, _Port:16, Crap/binary>> = Rest,
                               % Quite inefficient
-                              Req = store(<<"info_hash">>,Hash,store(<<"ip">>,Host,store(<<"port">>,Port,dict:new()))),
-                              io:format("Announcing\n"),
+                              Req = store(<<"info_hash">>,Hash,store(<<"ip">>,IP,store(<<"port">>,InPort,dict:new()))),
                               torr_tracker ! {{request,announce},Req,self()},
                               receive
                                  {{response,peers},Peers} ->
-                                    io:format("Got peers\n"),
-                                    Head = <<1:32,TransID:32,900:32,0:32,0:32>>,
+                                    Head = <<1:32,TransID:32,900:32,1:32,0:32>>,
                                     PS = list_to_binary(sets:to_list(Peers)),
-                                    udp_server ! {reply,Host,Port,<<Head/binary,PS/binary>>};
+                                    io:format("Peers: ~w\n",[PS]),
+                                    Response = <<Head/binary,PS/binary>>,
+                                    udp_server ! {reply,Host,InPort,Response};
                                  {{response,error},Data} ->
                                     io:format("No data found\n"),
-                                    udp_server ! {reply,Host,Port,<<1:32,TransID:32,900:32,0:32,0:32>>}
+                                    udp_server ! {reply,Host,InPort,<<1:32,TransID:32,900:32,0:32,0:32>>}
                               end
                       end;
                   2 -> ok %scrape
