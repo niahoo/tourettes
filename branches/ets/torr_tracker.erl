@@ -1,10 +1,12 @@
 -module(torr_tracker).
 -author("Tobias Olausson").
 
--import(dict,[new/0,is_key/2,store/3,erase/2,fetch/2,find/2]).
--import(lists,[keysearch/3]).
-
+-import(dict,[fetch/2,find/2]).
 -export([init/0]).
+
+-record(torrent,{
+      info_hash, ip, port,
+      down, up, left, seeding}).
 
 init() ->
    Pid = spawn_link(fun() -> 
@@ -32,7 +34,6 @@ tracker(TableID) ->
                   []       -> Pid ! {{response,error},<<"not found">>};
                   TorrData ->
                      Peers = [ Peer || {_Hash,Peer} <- TorrData],
-                     io:format("Stripped TorrData: ~w\n",[Peers]),
                      Pid ! {{response,peers},Peers}
                end,
 

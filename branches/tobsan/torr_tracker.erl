@@ -19,10 +19,10 @@ tracker(Torrents) ->
       {{request,Type},Data,Pid} ->
          case Type of
             announce -> 
-               Hash = fetch(<<"info_hash">>,Data),
-               IP = fetch(<<"ip">>,Data),
-               Port = fetch(<<"port">>,Data),
-               Elem = <<IP/binary,Port:16>>,
+               Hash  = fetch(<<"info_hash">>,Data),
+               IP    = fetch(<<"ip">>,Data),
+               Port  = fetch(<<"port">>,Data),
+               Elem  = <<IP/binary,Port:16>>,
                case find(Hash,Torrents) of
                   {ok,Peers} -> 
                      Pid ! {{response,peers},Peers},
