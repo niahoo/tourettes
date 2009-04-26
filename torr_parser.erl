@@ -59,14 +59,20 @@ valid(Dict) -> case
    is_key(<<"downloaded">>,Dict) and
    is_key(<<"left">>,Dict) and
    is_key(<<"port">>,Dict) of
-      true -> Dict;
       false -> exit(missingkeys)
-end.
+      true -> 
+         case find(<<"compact">>,Dict) of
+            % This is safe as convert/2 has been called before
+            {ok,0} -> exit(notsupported);
+            _      -> Dict
+         end
+   end.
 
 % Converts some fields into integers while leaving other
 convert(Key,Val) -> 
    case Key of
       <<"port">>        -> binary_to_integer(Val,0);
+      <<"compact">>     -> binary_to_integer(Val,0);
       <<"downloaded">>  -> binary_to_integer(Val,0);
       <<"uploaded">>    -> binary_to_integer(Val,0);
       <<"left">>        -> binary_to_integer(Val,0);
