@@ -8,16 +8,19 @@
 -module(torr_main).
 -export([init/1]).
 
-init(Port) ->
+init(Port) -> spawn(fun() ->
    process_flag(trap_exit,true),
    torr_server:init(tcp,Port),
    torr_server:init(udp,Port+1),
-   torr_tracker:init().
+   torr_tracker:init(),
+   super()
+end).
+   
 
-%super() ->
-%   receive
-%      {'EXIT',_,normal} -> super();
-%      {'EXIT',Pid,Reason} ->
-%         io:format("Process crash ~w:~w",[Pid,Reason]),
-%         super()
-%   end.
+super() ->
+   receive
+      {'EXIT',_,normal} -> super();
+      {'EXIT',Pid,Reason} ->
+         io:format("Process crash ~w:~w",[Pid,Reason]),
+         super()
+   end.
