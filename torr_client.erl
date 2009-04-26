@@ -45,24 +45,36 @@ handle_tcp(Socket) ->
             % Announce
             peers ->
 %               io:format("Tracker responded with peers \n"),
-               Size = list_to_binary(integer_to_list(length(Data) * 6)),
-               Peers = lists:foldl(fun({P,_,_,_},Acc) -> 
-                        <<Acc/binary,P/binary>> end, <<>>,Data),
-               Head = httpHeader(ok),
-               Response = <<Head/binary,"d8:intervali900e5:peers",
-                            Size/binary,":",Peers/binary,"e">>,
-               send(Socket,Response);
+               case length(Data) > 200 of
+                  false -> 
+                     Size = list_to_binary(integer_to_list(length(Data) * 6)),
+                     Peers = lists:foldl(fun({P,_,_,_},Acc) -> 
+                              <<Acc/binary,P/binary>> end, <<>>,Data),
+                     Head = httpHeader(ok),
+                     Response = <<Head/binary,"d8:intervali900e5:peers",
+                     Size/binary,":",Peers/binary,"e">>,
+                     send(Socket,Response);
+                  true ->
+                     Size = list_to_binary(integer_to_list((length(Data)-200) * 6)),
+                     Data2 = lists:nthtail(length(Data)-200,Data),
+                     Peers = lists:foldl(fun({P,_,_,_},Acc) -> 
+                              <<Acc/binary,P/binary>> end, <<>>,Data2),
+                     Head = httpHeader(ok),
+                     Response = <<Head/binary,"d8:intervali900e5:peers",
+                     Size/binary,":",Peers/binary,"e">>,
+                     send(Socket,Response)
+               end;
             error ->
-%               io:format("Tracker could not find torrent\n"),
+               %               io:format("Tracker could not find torrent\n"),
                send(Socket,httpHeader(ok)),
                send(Socket,<<"d7:failure3:404e">>);
             % Scrape
             files -> 
-%               io:format("Tracker responded to scrape\n"),
+               %               io:format("Tracker responded to scrape\n"),
                send(Socket,httpHeader(ok)),
                send(Socket,bencode_scrape(Data));
             scrape_error -> 
-%               io:format("Tracker could not scrape torrent\n"),
+               %               io:format("Tracker could not scrape torrent\n"),
                send(Socket,httpHeader(ok))
          end,
          close(Socket);
