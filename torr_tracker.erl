@@ -10,8 +10,7 @@
 
 init() ->
    Pid = spawn_link(fun() -> 
-            process_flag(trap_exit,true),
-            TableID = ets:new(torr_db,[bag,private]),
+            TableID = ets:new(torr_db,[bag,protected]),
             tracker(TableID) 
          end),
    register(torr_tracker,Pid),

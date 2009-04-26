@@ -9,7 +9,7 @@
 
 init(tcp,Port) ->
    {ok,Listen} = listen(Port,[binary]),
-   Pid = spawn(fun() ->
+   Pid = spawn_link(fun() ->
             io:format("Starting TCP server\n"),
             tcp_loop(Listen)
          end),
@@ -18,7 +18,7 @@ init(tcp,Port) ->
 
 init(udp,Port) ->
    {ok,Socket} = open(Port,[binary]),
-   Pid = spawn(fun() ->
+   Pid = spawn_link(fun() ->
             process_flag(trap_exit,true),
             io:format("Starting UDP server\n"),
             udp_loop(Socket)
