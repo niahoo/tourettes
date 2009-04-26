@@ -1,7 +1,7 @@
 -module(torr_server).
 -author("Tobias Olausson").
 
--import(gen_tcp,[listen/2,accept/1,controlling_process/2]).
+-import(gen_tcp,[listen/2,accept/1]).
 -import(gen_udp,[open/2,send/4]).
 -import(torr_client,[handle_tcp/1,handle_udp/3]).
 
@@ -10,7 +10,6 @@
 init(tcp,Port) ->
    {ok,Listen} = listen(Port,[binary]),
    Pid = spawn(fun() ->
-            process_flag(trap_exit,true),
             io:format("Starting TCP server\n"),
             tcp_loop(Listen)
          end),
@@ -52,10 +51,7 @@ tcp_loop(Listen) ->
                   process_flag(trap_exit,true),
                   handle_tcp(Socket)
                end),
-         controlling_process(Socket,Pid),
-         tcp_loop(Listen);
-      {'EXIT',Pid,_Reason} -> 
-         io:format("TCP Client ~w terminated\n",[Pid]),
+         gen_tcp:controlling_process(Socket,Pid),
          tcp_loop(Listen);
       {error,Reason} -> exit(Reason)
    end.

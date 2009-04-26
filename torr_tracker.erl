@@ -42,6 +42,7 @@ tracker(TableID) ->
                      Pid ! {{response,peers},Peers},
                      case find(<<"event">>,Data) of
                         {ok,3} ->
+                           % This is such an ugly hack
                            io:format("Deleting client\n"),
                            Deleted = lists:keydelete(Elem,1,Peers),
                            case Deleted of

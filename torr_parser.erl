@@ -75,7 +75,8 @@ convert(Key,Val) ->
 % a real integer, that is <<"123">> => 123
 binary_to_integer(<<>>,Acc) -> Acc;
 binary_to_integer(<<Num:8,Rest/binary>>,Acc) when Num >= 48 andalso Num < 58 ->
-   binary_to_integer(Rest, Acc*10 + (Num-48)).
+   binary_to_integer(Rest, Acc*10 + (Num-48));
+binary_to_integer(_,Acc) -> exit({badarg,Acc}).
 
 % Almost like takewhile, but for binaries
 bin_takewhile(Char,Data) -> bin_takewhile1(Data,Char,<<>>).
