@@ -23,7 +23,7 @@ tracker(TableID) ->
          case Action of
             announce -> 
                Hash  = fetch(<<"info_hash">>,Data), 
-               io:format("Announcing for hash: ~w\n",[Hash]),
+%               io:format("Announcing for hash: ~w\n",[Hash]),
                IP    = fetch(<<"ip">>,Data),
                Port  = fetch(<<"port">>,Data), 
                Elem  = <<IP/binary,Port:16>>,
@@ -37,21 +37,21 @@ tracker(TableID) ->
                      Value = {Elem,Up,Down,Left},
                      ets:insert(TableID,{Hash,Value});
                   TorrData ->
-                     io:format("Found Hash\n"),
+%                     io:format("Found Hash\n"),
                      Peers = [ Peer || {_Hash,Peer} <- TorrData],
                      Pid ! {{response,peers},Peers},
                      case find(<<"event">>,Data) of
                         {ok,3} ->
                            % This is such an ugly hack
-                           io:format("Deleting client\n"),
+%                           io:format("Deleting client\n"),
                            Deleted = lists:keydelete(Elem,1,Peers),
                            case Deleted of
                               [] -> ets:delete(TableID,Hash);
                               _  -> lists:foreach(fun(E) -> ets:insert(TableID,{Hash,E}) end,Deleted)
                            end;
                         Other ->
-                           io:format("Action: ~w\n",[Other]),
-                           io:format("Updating client\n"),
+%                           io:format("Action: ~w\n",[Other]),
+%                           io:format("Updating client\n"),
                            Value = {Elem,Up,Down,Left},
                            ets:insert(TableID,{Hash,Value})
                      end

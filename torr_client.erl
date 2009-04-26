@@ -27,7 +27,6 @@ handle_tcp(Socket) ->
          exit("tcp error");
       % Recieved from the parser
       {{parse_ok,Type},Data} ->
-         io:format("Parse ok, type is ~w, data is: ~w\n",[Type,Data]),
          case Type of
             scrape -> torr_tracker ! {{request,Type},Data,self()};
             announce ->
@@ -45,7 +44,7 @@ handle_tcp(Socket) ->
          case Type of
             % Announce
             peers ->
-               io:format("Tracker responded with peers \n"),
+%               io:format("Tracker responded with peers \n"),
                Size = list_to_binary(integer_to_list(length(Data) * 6)),
                Peers = lists:foldl(fun({P,_,_,_},Acc) -> 
                         <<Acc/binary,P/binary>> end, <<>>,Data),
@@ -54,16 +53,16 @@ handle_tcp(Socket) ->
                             Size/binary,":",Peers/binary,"e">>,
                send(Socket,Response);
             error ->
-               io:format("Tracker could not find torrent\n"),
+%               io:format("Tracker could not find torrent\n"),
                send(Socket,httpHeader(ok)),
                send(Socket,<<"d7:failure3:404e">>);
             % Scrape
             files -> 
-               io:format("Tracker responded to scrape\n"),
+%               io:format("Tracker responded to scrape\n"),
                send(Socket,httpHeader(ok)),
                send(Socket,bencode_scrape(Data));
             scrape_error -> 
-               io:format("Tracker could not scrape torrent\n"),
+%               io:format("Tracker could not scrape torrent\n"),
                send(Socket,httpHeader(ok))
          end,
          close(Socket);
