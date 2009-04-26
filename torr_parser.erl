@@ -55,6 +55,9 @@ url_decode(<<Byte:8,Rest/binary>>,Acc) -> url_decode(Rest,<<Acc/binary,Byte>>).
 valid(Dict) -> case
    is_key(<<"info_hash">>,Dict) and
    is_key(<<"peer_id">>,Dict) and
+   is_key(<<"uploaded">>,Dict) and
+   is_key(<<"downloaded">>,Dict) and
+   is_key(<<"left">>,Dict) and
    is_key(<<"port">>,Dict) of
       true -> Dict;
       false -> exit(missingkeys)
