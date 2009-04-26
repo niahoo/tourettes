@@ -27,6 +27,7 @@ handle_tcp(Socket) ->
          exit("tcp error");
       % Recieved from the parser
       {{parse_ok,Type},Data} ->
+         io:format("Parse ok, type is ~w, data is: ~w\n",[Type,Data]),
          case Type of
             scrape -> torr_tracker ! {{request,Type},Data,self()};
             announce ->

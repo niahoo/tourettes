@@ -7,7 +7,7 @@
 % Main function, should be forked off while
 % supplying the caller's Pid as an argument
 parse(<<"GET /announce?",Request/binary>>,Pid) -> 
-   Req = bin_takewhile($ ,Request),
+   Req = bin_takewhile($ ,bin_takewhile($\r ,Request)),
    ReqDict = parse_key(Req,<<>>),
    valid(ReqDict),
    Pid ! {{parse_ok,announce},ReqDict};
