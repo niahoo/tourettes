@@ -59,9 +59,9 @@ valid(Dict) -> case
    is_key(<<"downloaded">>,Dict) and
    is_key(<<"left">>,Dict) and
    is_key(<<"port">>,Dict) of
-      false -> exit(missingkeys)
+      false -> exit(missingkeys);
       true -> 
-         case find(<<"compact">>,Dict) of
+         case dict:find(<<"compact">>,Dict) of
             % This is safe as convert/2 has been called before
             {ok,0} -> exit(notsupported);
             _      -> Dict
