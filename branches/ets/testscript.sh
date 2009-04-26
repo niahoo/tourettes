@@ -7,7 +7,7 @@ while true; do
 
 echo $request_string
 #  echo
-  echo $request_string | nc 127.0.0.1 60666 >/dev/null
+  echo $request_string | nc 129.16.25.146 60666 >/dev/null
 #  echo
 
 done
