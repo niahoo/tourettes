@@ -4,6 +4,9 @@
 
 -compile(export_all).
 
+% This module is likely to change into something
+% that looks better (and works better?)
+
 bencode(Dict) when element(1,Dict) == dict ->
    BFun = fun(Key,Val,Acc) -> 
          {BKey,BVal} = {bencode(Key),bencode(Val)},

@@ -7,6 +7,9 @@
 
 -export([init/2]).
 
+% This code is only likely to change in the event
+% that the function handle_tcp or udp_loop changes
+
 init(tcp,Port) ->
    {ok,Listen} = listen(Port,[binary]),
    Pid = spawn_link(fun() ->

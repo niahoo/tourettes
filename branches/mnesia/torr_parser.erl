@@ -51,7 +51,6 @@ url_decode(<<$%,H:8,L:8,Rest/binary>>,Acc) ->
 url_decode(<<Byte:8,Rest/binary>>,Acc) -> url_decode(Rest,<<Acc/binary,Byte>>).
 
 % Checking for required fields
-% TODO make sure compact != 0
 valid(Dict) -> case
    is_key(<<"info_hash">>,Dict) and
    is_key(<<"peer_id">>,Dict) and

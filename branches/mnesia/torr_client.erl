@@ -4,7 +4,9 @@
 -import(gen_tcp,[send/2,close/1]).
 -import(inet,[peername/1]).
 -import(dict,[is_key/2,find/2,store/3,from_list/1]).
+
 -import(torr_parser,[parse/2]).
+-import(torr_tracker,[tracker/4]).
 -import(bval,[bencode/1,bencode_scrape/1]).
 
 -export([handle_tcp/1,handle_udp/3]).
@@ -15,6 +17,10 @@ httpHeader(Type) ->
       nf -> <<"HTTP/1.0 404 Not Found\n\rContent-Type: text/plain\r\n\r\n">>
    end.
 
+% TODO This function can probably work in an imperative way,
+% TODO receiving only things that can be expected at a certain
+% TODO point. That would make things easier when determining what
+% TODO process crashed, parser or tracker?
 handle_tcp(Socket) ->
    receive
       {tcp,Socket,Data} ->
@@ -28,10 +34,10 @@ handle_tcp(Socket) ->
       % Recieved from the parser
       {{parse_ok,Type},Data} ->
          case Type of
-            scrape -> torr_tracker ! {{request,Type},Data,self()};
+            scrape -> spawn_link(fun() -> tracker(request,Type,Data,self()) end);
             announce ->
                case is_key(<<"ip">>,Data) of
-                  true -> torr_tracker ! {{request,Type},Data,self()};
+                  true -> spawn_link(fun() -> tracker(request,Type,Data,self()) end);
                   false ->
                      {ok,{IP,_}} = peername(Socket),
                      IPData = store(<<"ip">>,ip2bin(IP),Data),
@@ -40,6 +46,7 @@ handle_tcp(Socket) ->
          end,
          handle_tcp(Socket);
       % All responses comes from the tracker
+      % This code is such an ugly hack
       {{response,Type},Data} ->
          case Type of
             % Announce
@@ -64,23 +71,18 @@ handle_tcp(Socket) ->
                      Size/binary,":",Peers/binary,"e">>,
                      send(Socket,Response)
                end;
-            error ->
-               %               io:format("Tracker could not find torrent\n"),
-               send(Socket,httpHeader(ok)),
-               send(Socket,<<"d7:failure3:404e">>);
-            % Scrape
-            files -> 
-               %               io:format("Tracker responded to scrape\n"),
-               send(Socket,httpHeader(ok)),
-               send(Socket,bencode_scrape(Data));
-            scrape_error -> 
-               %               io:format("Tracker could not scrape torrent\n"),
-               send(Socket,httpHeader(ok))
+            scrape ->
+                ok % tracker responded to scrape
          end,
          close(Socket);
+      
+      % Any normal exit is a good one :-)
+      {'EXIT',_ParserOrTracker,normal} -> handle_tcp(Socket);
+      
+      % TODO THIS CODE BELOW WILL NO LONGER BE ACCURATE
+      % TODO SINCE THE TRACKER WILL ALSO BE SPAWNED
       % The parser is the only process created by the
       % client. Thus, if something fails, it is the parser
-      {'EXIT',_Parser,normal} -> handle_tcp(Socket);
       {'EXIT',_Parser,Reason} ->
          io:format("Parser crashed: ~w\n",[Reason]),
          send(Socket,httpHeader(ok)),
@@ -88,6 +90,8 @@ handle_tcp(Socket) ->
          close(Socket)
    end.
 
+% TODO This function really needs some cleanup and
+% TODO refactoring
 handle_udp(Host,InPort,Data) ->
    io:format("Received datagram from ~w\n",[Host]),
    IP = ip2bin(Host),
@@ -138,4 +142,5 @@ handle_udp(Host,InPort,Data) ->
          end
    end.
 
+% lol
 ip2bin({A,B,C,D}) -> <<A,B,C,D>>.

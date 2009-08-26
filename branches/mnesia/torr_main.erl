@@ -10,14 +10,13 @@
 
 init(Port) -> spawn(fun() ->
    process_flag(trap_exit,true),
-   torr_server:init(tcp,Port),
-   torr_server:init(udp,Port+1),
-   torr_tracker:init(),
-   super()
+   TCP = torr_server:init(tcp,Port),
+   UDP = torr_server:init(udp,Port+1),
+   super(TCP,UDP)
 end).
    
 
-super() ->
+super(TCP,UDP) ->
    receive
       {'EXIT',_,normal} -> super();
       {'EXIT',Pid,Reason} ->
